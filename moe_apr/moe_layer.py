@@ -177,6 +177,10 @@ class MoELoRALinear(nn.Module):
 
     GATE_MODES = ("adaptive", "naive", "none")
 
+    # Class-level default so existing checkpoints load unchanged; flipped per
+    # instance by ``set_inference_bypass``. Never consulted during training.
+    bypass_at_inference: bool = False
+
     def __init__(
         self,
         base_linear: nn.Linear,
@@ -447,6 +451,14 @@ class MoELoRALinear(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # noqa: D401
         base_out = self.base(x)
+
+        # Inference-time module pruning (RQ3 depth analysis): when set, this
+        # projection falls back to the frozen base path, i.e. the whole adapter
+        # branch -- shared experts, routing experts, router and gate -- is
+        # removed. Same HARD RULE as the branch ablation above: no-op while
+        # training, so no training-path number can change.
+        if self.bypass_at_inference and not self.training:
+            return base_out
 
         router_logits, top_k_weights, top_k_indices, shared_weight = self._compute_routing_weights(x)
 

@@ -15,6 +15,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional, Sequence, Tuple
 
+import os
+
 import torch
 import torch.nn as nn
 
@@ -148,3 +150,78 @@ def report_trainable_parameters(model: nn.Module) -> Tuple[int, int, float]:
 
 def collect_moe_layers(model: nn.Module) -> List[MoELoRALinear]:
     return [m for m in model.modules() if isinstance(m, MoELoRALinear)]
+
+
+def set_inference_bypass(
+    model: nn.Module,
+    layers: Optional[Iterable[int]] = None,
+    projections: Optional[Iterable[str]] = None,
+    enable: bool = True,
+) -> List[str]:
+    """Bypass the MoE-LoRA branch of selected modules at inference time.
+
+    A bypassed module falls back to its frozen base linear, i.e. its experts,
+    router and gate are effectively pruned. Used by the RQ3 depth analysis to
+    measure what the near-uniform mid-stack modules actually contribute.
+
+    Args:
+        model:       a model already patched by :func:`patch_model_with_moe_lora`.
+        layers:      transformer layer indices to act on; ``None`` means all.
+        projections: projection leaf names (e.g. ``["gate_proj"]``); ``None`` means all.
+        enable:      True to bypass, False to restore.
+
+    Returns:
+        Names of the modules whose flag was set.
+    """
+    want_layers = None if layers is None else set(int(x) for x in layers)
+    want_proj = None if projections is None else set(projections)
+    touched: List[str] = []
+    for name, module in model.named_modules():
+        if not isinstance(module, MoELoRALinear):
+            continue
+        parts = name.split(".")
+        try:
+            layer_idx = int(parts[parts.index("layers") + 1])
+        except (ValueError, IndexError):
+            continue
+        if want_layers is not None and layer_idx not in want_layers:
+            continue
+        if want_proj is not None and parts[-1] not in want_proj:
+            continue
+        module.bypass_at_inference = bool(enable)
+        touched.append(name)
+    return touched
+
+
+def _parse_layer_spec(spec: str) -> List[int]:
+    """``"9-18,24"`` -> ``[9, ..., 18, 24]``."""
+    out: List[int] = []
+    for part in spec.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            lo, hi = part.split("-", 1)
+            out.extend(range(int(lo), int(hi) + 1))
+        else:
+            out.append(int(part))
+    return sorted(set(out))
+
+
+def apply_inference_bypass_from_env(model: nn.Module) -> List[str]:
+    """Apply ``MOE_BYPASS_LAYERS`` (and optional ``MOE_BYPASS_PROJ``).
+
+    Mirrors the ``MOE_ABLATE`` convention: evaluation entry points call this
+    once after loading the MoE state, so a bypass run needs no code change.
+    ``MOE_BYPASS_LAYERS="9-18"`` prunes every adapter module in layers 9..18.
+    """
+    spec = os.environ.get("MOE_BYPASS_LAYERS", "").strip()
+    if not spec:
+        return []
+    layers = _parse_layer_spec(spec)
+    proj_spec = os.environ.get("MOE_BYPASS_PROJ", "").strip()
+    projections = [p.strip() for p in proj_spec.split(",") if p.strip()] or None
+    touched = set_inference_bypass(model, layers=layers, projections=projections)
+    print(f"[moe] inference bypass: layers={spec} proj={projections or 'all'} "
+          f"-> {len(touched)} modules pruned", flush=True)
+    return touched

@@ -54,6 +54,7 @@ from train_moe_apr import load_moe_state
 from moe_apr.model_patcher import (
     MoEPatchConfig,
     patch_model_with_moe_lora,
+    apply_inference_bypass_from_env,
 )
 from moe_apr.moe_layer import get_moe_ablation
 
@@ -382,6 +383,7 @@ def load_model(args) -> Tuple[Any, Any]:
         replaced = patch_model_with_moe_lora(model, patch_cfg)
         print(f"[load] patched {len(replaced)} modules", flush=True)
         load_moe_state(model, args.moe_state)
+        apply_inference_bypass_from_env(model)
         ab_mode, ab_norm = get_moe_ablation()
         print(f"[load] branch ablation: MOE_ABLATE={ab_mode} MOE_ABLATE_NORM={ab_norm}", flush=True)
     elif args.mode == "base":

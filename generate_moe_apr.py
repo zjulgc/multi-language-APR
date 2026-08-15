@@ -32,6 +32,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from moe_apr.model_patcher import (
     MoEPatchConfig,
     patch_model_with_moe_lora,
+    apply_inference_bypass_from_env,
 )
 from prompt_utils import render_chat_prompt
 from train_moe_apr import load_moe_state
@@ -166,6 +167,7 @@ def main() -> None:
     replaced = patch_model_with_moe_lora(model, patch_cfg)
     print(f"Patched {len(replaced)} modules.", flush=True)
     load_moe_state(model, args.moe_state)
+    apply_inference_bypass_from_env(model)
     model.eval()
     model.config.use_cache = True
 
