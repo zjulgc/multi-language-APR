@@ -1,0 +1,90 @@
+# Python / notebooks
+**/__pycache__/
+**/*.py[cod]
+**/.ipynb_checkpoints/
+try.ipynb
+data.ipynb
+try.py
+
+# IDE / agent / local tooling
+.cursor/
+.agents/
+.codex/
+.claude/
+
+# HF / caches
+.hf_cache/
+.cache/
+
+# Experiment tracking
+wandb/
+.swanlab/
+swanlog/
+**/.swanlab.env
+**/.swanlab.env.*
+
+# Legacy dataset dump
+instruction_dataset/
+dumped/
+output/
+
+# Benchmark artifacts (legacy)
+**/mbxp_results/
+**/humaneval_results/
+
+# ── xCodeEval pipeline: data (large, local only) ──
+data/
+
+# ── xCodeEval pipeline: experiment artifacts ──
+checkpoints/
+eval_outputs/
+results/
+logs/
+quick_eval_*.json
+
+# Model weights & checkpoints (anywhere in repo)
+**/*.pt
+**/*.pth
+**/*.safetensors
+**/*.bin
+**/moe_state.pt
+**/adapter_model.*
+**/pytorch_model*.bin
+
+# Logs & job output
+*.log
+*.log.*
+**/*log.txt
+*.out
+*.err
+**/_e8r8_s2_status.txt
+**/_e8r8_s2_status.txt.*
+
+# Large eval JSON / jsonl outputs
+**/*_passatk.json
+**/*_results.jsonl
+**/*_pass1.json
+**/*_per_sample.json
+**/routing_spec_*.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# vim swap
+*.swp
+*.swo
+.*.swp
+.*.swo
+
+# 实验过程文档（已归档 /mnt/backup1/lgc/old_exps/process_docs/，开源仓库只保留代码与 docs/）
+实验记录*.md
+软件学报_*.md
+文献调研_*.md
+FILES.md
+*.drawio
+*.url
+
+# 论文相关资产不进开源仓库（图 + 画图/统计/填表脚本，本地保留）
+figures/
+analysis/
